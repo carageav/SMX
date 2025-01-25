@@ -28,6 +28,10 @@ SystemState currentState = SystemState::INIT;
 SensorConfig config;
 bool measurementRequested = false;
 
+uint32_t startupTime = 0;
+uint32_t cycleCount = 0;
+const uint32_t TEST_DURATION_MS = 10 * 60 * 1000; // 10 minutes test duration
+
 
 bool initializeSensors();
 
@@ -46,6 +50,20 @@ SoftwareTimer taskWakeupTimer;
 int8_t eventType = -1;
 
 void setup() {
+  startupTime = millis();
+
+  // Disable BLE first thing
+    Serial.println("Disabling BLE...");
+    Bluefruit.begin(0, 0);  // Initialize with 0 peripherals and 0 centrals
+    Bluefruit.Advertising.stop();  // Stop advertising
+    Bluefruit.Scanner.stop();      // Stop scanning
+
+
+
+    // Add power monitoring point
+    uint32_t initialCurrent = analogRead(WB_A0);  // Battery monitoring pin
+    Serial.print("Initial current draw: ");
+    Serial.println(initialCurrent);
     Serial.begin(115200);
     time_t timeout = millis();
     while (!Serial && (millis() - timeout) < 5000);
@@ -175,8 +193,9 @@ void handleIntervalUpdate(uint8_t newInterval) {
 }*/
 
 void initializeSystem() {
-    Serial.println("\n=== SMX Soil Moisture Sensor v0.1 ===");
     Serial.println("Starting initialization...");
+    PowerMonitor::init();
+    PowerMonitor::printPowerStatus("System start");
 
     // Create instances
     Serial.println("Creating component instances...");
@@ -267,6 +286,7 @@ void initializeSystem() {
 
     Serial.println("Initialization complete!");
     Serial.println("===========================\n");
+    PowerMonitor::printPowerStatus("After initialization");
 }
 
 
@@ -380,6 +400,18 @@ void handleTransmitState() {
 
 
 void handleSleepState() {
+    PowerMonitor::printPowerStatus("Before sleep");
+    cycleCount++;
+    uint32_t runTime = (millis() - startupTime) / 1000; // seconds
+    Serial.printf("\nCycle #%lu, Runtime: %lu seconds\n", cycleCount, runTime);
+    
+    // Check if we're close to the 55-hour mark where it failed before
+    if (runTime >= 86400) {
+        Serial.println("WARNING: Approaching previous failure time!  Reset!");
+        NVIC_SystemReset();
+    }
+    
+    
     Serial.printf("\nEntering sleep mode for %d minutes\n", config.DS_min);
     Serial.println("==================================");
     
@@ -390,8 +422,56 @@ void handleSleepState() {
     taskWakeupTimer.begin(Time, periodicWakeup);
     taskWakeupTimer.start();
     
+    PowerMonitor::printPowerStatus("After sleep setup");
+    
     currentState = SystemState::MEASUREMENT;
 }
+
+
+
+/*void handleSleepState() {
+    cycleCount++;
+    uint32_t runTime = (millis() - startupTime) / 1000; // seconds
+    Serial.printf("\nCycle #%lu, Runtime: %lu seconds\n", cycleCount, runTime);
+    
+    // Check if we're close to the 55-hour mark where it failed before
+    if (runTime >= TEST_DURATION_MS/1000) {
+        Serial.println("WARNING: Approaching previous failure time!");
+    }
+    
+    Serial.printf("Entering sleep mode for %d minutes\n", config.DS_min);
+    Serial.println("==================================");
+    
+    Serial.println("Step 1: Before powerManager");
+    powerManager->enterLowPowerMode();
+    Serial.println("Step 2: After powerManager");
+    
+    // Temporarily reduce sleep time for testing
+    uint32_t debugTime = 30000; // 30 seconds instead of normal minutes
+    
+    Serial.println("Step 3: Before timer stop");
+    taskWakeupTimer.stop();
+    Serial.println("Step 4: After timer stop");
+    
+    Time = debugTime; // Use shorter time for testing
+    Serial.println("Step 5: Time calculated");
+    
+    Serial.println("Step 6: Before timer begin");
+    taskWakeupTimer.begin(Time, periodicWakeup);
+    Serial.println("Step 7: After timer begin");
+    
+    Serial.println("Step 8: Before timer start");
+    taskWakeupTimer.start();
+    Serial.println("Step 9: After timer start");
+    
+    Serial.println("Step 10: Before state change");
+    currentState = SystemState::MEASUREMENT;
+    Serial.println("Step 11: State changed to MEASUREMENT");
+    
+    Serial.flush();
+}*/
+
+
 
 void periodicWakeup(TimerHandle_t unused) {
     eventType = 1;

@@ -16,8 +16,8 @@ namespace Pins {
 
 // Battery Configuration
 namespace BatteryConfig {
-    constexpr uint16_t VMAX = 4190;        // Maximum battery voltage in mV
-    constexpr uint16_t VMIN = 3400;        // Minimum battery voltage in mV
+    constexpr uint16_t VMAX = 4600;        // Maximum battery voltage in mV
+    constexpr uint16_t VMIN = 3300;        // Minimum battery voltage in mV
     constexpr float MV_PER_LSB = 0.73242188F;
     constexpr float DIVIDER_COMP = 1.73F;
     constexpr float REAL_MV_PER_LSB = DIVIDER_COMP * MV_PER_LSB;

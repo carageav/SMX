@@ -7,6 +7,7 @@ bool TemperatureSensor::initialize() {
 
 int TemperatureSensor::getTemperature() {
     wakeup();
+    delay(50);
     int temp = int(STemp.readTempC() + TEMP_OFFSET);
     sleep();
     return temp;

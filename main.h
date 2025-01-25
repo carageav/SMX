@@ -12,6 +12,8 @@
 //#include "Adafruit_EEPROM_I2C.h"
 #include <SparkFun_External_EEPROM.h>
 #include "config.h"
+#include "power_monitor.h"
+#include <bluefruit.h>
 
 // Forward declarations
 class ImpedanceMeter;
